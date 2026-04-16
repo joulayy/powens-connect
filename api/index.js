@@ -186,7 +186,7 @@ async function readBody(req) {
 
 // ── Handler principal (export Vercel) ─────────────────────────────────────────
 module.exports = async (req, res) => {
-  const { pathname, query } = new URL(req.url, "http://x");
+  const { pathname, searchParams: query } = new URL(req.url, "http://x");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {

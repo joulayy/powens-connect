@@ -24,7 +24,7 @@ const COOKIE_SECRET = process.env.COOKIE_SECRET        || "dev-secret-change-me-
 const BASE_URL      = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 const API_BASE    = `https://${DOMAIN}.biapi.pro/2.0`;
-const REDIRECT_URI = `${BASE_URL}/callback`;
+const REDIRECT_URI = `${BASE_URL}/api/callback`;
 
 // ── Cookie signé (HMAC-SHA256) ────────────────────────────────────────────────
 // Le cookie contient les données de session + la session Powens, signé par le
@@ -223,7 +223,7 @@ module.exports = async (req, res) => {
   }
 
   // ── Callback webview (pas d'auth requise) ────────────────────────────────
-  if (pathname === "/callback") {
+  if (pathname === "/api/callback") {
     if (query.get("error")) {
       return sendHtml(res, `<html><body style="font-family:sans-serif;padding:2rem">
         <h2>❌ Erreur: ${query.get("error")}</h2>
@@ -257,6 +257,23 @@ module.exports = async (req, res) => {
       sendJson(res, 404, { error: "index.html introuvable" });
     }
     return;
+  }
+
+  // ── GET /api/webview-start — ouvre la webview et set le cookie via redirect ──
+  // (approche redirect plutôt que fetch pour garantir que le cookie est sauvegardé)
+  if (pathname === "/api/webview-start" && req.method === "GET") {
+    try {
+      const { webviewUrl, powens } = await getWebviewUrl(session);
+      const newSession = { ...session, powens };
+      const cookie = makeSessionCookie(newSession);
+      return redirect(res, webviewUrl, { "Set-Cookie": cookie });
+    } catch (e) {
+      return sendHtml(res, `<html><body style="font-family:sans-serif;padding:2rem;background:#f7f7f5;">
+        <h2 style="color:#c0392b;">❌ Erreur de connexion</h2>
+        <p>${e.message}</p>
+        <script>setTimeout(()=>window.close(),3000)</script>
+      </body></html>`);
+    }
   }
 
   // ── POST /api/add-connection ──────────────────────────────────────────────

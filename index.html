@@ -415,25 +415,20 @@ async function deleteAccount(accountId) {
 }
 
 async function addBank() {
-  try {
-    const r = await fetch(`${PROXY}/api/add-connection`, { method: 'POST' });
-    if (!r.ok) throw new Error();
-    const { webviewUrl } = await r.json();
-    const popup = window.open(webviewUrl, '_blank', 'width=480,height=700');
-    if (!popup) {
-      showToast('Autorisez les popups pour ce site', '⚠');
-      return;
-    }
-    const timer = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(timer);
-        showToast('Banque connectée ! Synchronisation en cours...', '🏦');
-        pollForAccounts();
-      }
-    }, 800);
-  } catch {
-    showToast('Impossible d\'ouvrir la webview', '⚠');
+  // Ouvre /api/webview-start dans un popup : le serveur set le cookie via un
+  // redirect 302 (plus fiable que Set-Cookie dans une réponse fetch).
+  const popup = window.open(`${PROXY}/api/webview-start`, '_blank', 'width=480,height=700');
+  if (!popup) {
+    showToast('Autorisez les popups pour ce site', '⚠');
+    return;
   }
+  const timer = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(timer);
+      showToast('Synchronisation en cours...', '🏦');
+      pollForAccounts();
+    }
+  }, 800);
 }
 
 async function pollForAccounts(attempt = 0) {

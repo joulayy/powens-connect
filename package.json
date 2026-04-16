@@ -1,0 +1,8 @@
+{
+  "name": "powens-connect",
+  "version": "1.0.0",
+  "description": "Dashboard bancaire personnel — Powens Connect",
+  "engines": {
+    "node": ">=18"
+  }
+}

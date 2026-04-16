@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Powens Connect</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --border: #e8e8e4;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --subtle: #9b9b9b;
+      --green: #1a8a4a;
+      --green-bg: #edfbf2;
+      --red: #c0392b;
+      --red-bg: #fdf0ef;
+      --blue: #1a5fa8;
+      --blue-bg: #eef4fd;
+      --amber: #92580a;
+      --amber-bg: #fdf5e6;
+      --purple: #6b3fa0;
+      --purple-bg: #f3eefb;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 8px rgba(0,0,0,0.04);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout ── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+    .logo-icon { width: 28px; height: 28px; background: #1a3fa8; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; }
+    .sandbox-badge { font-size: 11px; background: var(--amber-bg); color: var(--amber); padding: 2px 8px; border-radius: 100px; font-weight: 500; border: 1px solid #f0d090; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── KPI cards ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 2rem; }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .kpi-label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .kpi-icon { font-size: 14px; }
+    .kpi-value { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+    .kpi-sub { font-size: 12px; color: var(--subtle); margin-top: 4px; }
+    .kpi-card.total .kpi-value { color: var(--text); }
+    .kpi-card.invested .kpi-value { color: var(--purple); }
+    .kpi-card.cash .kpi-value { color: var(--green); }
+
+    /* ── Section titles ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 16px; font-size: 13px; font-weight: 500;
+      border-radius: var(--radius-sm); cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); transition: all 0.15s; font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--bg); }
+    .btn-primary { background: var(--text); color: white; border-color: var(--text); }
+    .btn-primary:hover { opacity: 0.85; background: var(--text); }
+    .btn-danger { color: var(--red); border-color: #f0c0bc; background: var(--red-bg); }
+    .btn-danger:hover { background: #fbe0de; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-icon { padding: 6px 8px; }
+
+    /* ── Bank groups ── */
+    .banks-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 2rem; }
+    .bank-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .bank-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .bank-logo {
+      width: 36px; height: 36px; border-radius: 9px;
+      border: 1px solid var(--border);
+      object-fit: contain; background: white; padding: 4px;
+      flex-shrink: 0;
+    }
+    .bank-logo-fallback {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--blue-bg); color: var(--blue);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .bank-name { font-weight: 600; font-size: 14px; flex: 1; }
+    .bank-accounts-count { font-size: 12px; color: var(--subtle); }
+
+    .account-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+    .account-row:last-child { border-bottom: none; }
+    .account-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .account-type-badge {
+      font-size: 11px; padding: 3px 9px; border-radius: 100px;
+      font-weight: 500; white-space: nowrap; flex-shrink: 0;
+    }
+    .type-checking { background: var(--blue-bg); color: var(--blue); }
+    .type-savings { background: var(--purple-bg); color: var(--purple); }
+    .type-market, .type-pea { background: var(--amber-bg); color: var(--amber); }
+    .type-other { background: var(--bg); color: var(--muted); }
+    .account-name { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .account-iban { font-size: 11px; color: var(--subtle); font-family: monospace; }
+    .account-balance { font-size: 15px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+    .account-balance.positive { color: var(--green); }
+    .account-balance.negative { color: var(--red); }
+
+    /* ── Transactions ── */
+    .tx-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .tx-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 120px 100px;
+      gap: 12px;
+      padding: 12px 18px;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .tx-row:hover { background: var(--bg); }
+    .tx-row:last-child { border-bottom: none; }
+    .tx-row.header {
+      background: var(--bg);
+      font-size: 11px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.05em; padding: 10px 18px;
+    }
+    .tx-date { font-size: 13px; color: var(--muted); }
+    .tx-label { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tx-cat-tag {
+      font-size: 11px; padding: 3px 9px; border-radius: 100px;
+      font-weight: 500; display: inline-block; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tx-amount { font-size: 13px; font-weight: 600; text-align: right; }
+    .tx-amount.pos { color: var(--green); }
+    .tx-amount.neg { color: var(--red); }
+
+    /* ── Add bank button ── */
+    .add-bank-btn {
+      width: 100%; padding: 14px;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 2rem;
+    }
+    .add-bank-btn:hover { border-color: var(--text); color: var(--text); background: var(--surface); }
+
+    /* ── States ── */
+    .loading-state { text-align: center; padding: 3rem; color: var(--muted); font-size: 14px; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: white; padding: 12px 20px;
+      border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+      z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.show { opacity: 1; }
+    .empty-state { text-align: center; padding: 4rem 2rem; }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .empty-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .empty-sub { font-size: 14px; color: var(--muted); }
+
+    /* ── Delete confirm overlay ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: none; align-items: center; justify-content: center; z-index: 50;
+    }
+    .overlay.show { display: flex; }
+    .dialog {
+      background: white; border-radius: var(--radius); padding: 1.5rem;
+      max-width: 360px; width: 90%; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    .dialog h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .dialog p { font-size: 14px; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.5; }
+    .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    @media (max-width: 600px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .tx-row { grid-template-columns: 80px 1fr 90px; }
+      .tx-row .tx-cat { display: none; }
+      main { padding: 1.25rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">P</div>
+    Powens Connect
+    <span class="sandbox-badge">Sandbox</span>
+  </div>
+  <button class="btn btn-sm btn-primary" onclick="addBank()">+ Ajouter une banque</button>
+</div>
+
+<main>
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card total">
+      <div class="kpi-label"><span class="kpi-icon">💰</span> Patrimoine total</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+      <div class="kpi-sub" id="kpi-total-sub">chargement...</div>
+    </div>
+    <div class="kpi-card invested">
+      <div class="kpi-label"><span class="kpi-icon">📈</span> Argent investi</div>
+      <div class="kpi-value" id="kpi-invested">—</div>
+      <div class="kpi-sub" id="kpi-invested-sub">épargne & marchés</div>
+    </div>
+    <div class="kpi-card cash">
+      <div class="kpi-label"><span class="kpi-icon">💵</span> Cash disponible</div>
+      <div class="kpi-value" id="kpi-cash">—</div>
+      <div class="kpi-sub" id="kpi-cash-sub">comptes courants</div>
+    </div>
+  </div>
+
+  <!-- Comptes -->
+  <div class="section-header">
+    <div class="section-title">Comptes bancaires</div>
+  </div>
+  <div id="banks-list" class="banks-list">
+    <div class="loading-state"><span class="spinner"></span> Chargement des comptes...</div>
+  </div>
+
+  <button class="add-bank-btn" onclick="addBank()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Ajouter une autre banque
+  </button>
+
+  <!-- Transactions -->
+  <div class="section-header">
+    <div class="section-title">Dernières transactions</div>
+    <div id="tx-count" style="font-size:12px;color:var(--subtle);"></div>
+  </div>
+  <div class="tx-card" id="tx-card">
+    <div class="loading-state"><span class="spinner"></span> Chargement...</div>
+  </div>
+
+</main>
+
+<!-- Delete dialog -->
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h3>Supprimer ce compte ?</h3>
+    <p id="dialog-text">Cette action désactivera le compte et supprimera ses données.</p>
+    <div class="dialog-actions">
+      <button class="btn" onclick="closeDialog()">Annuler</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const PROXY = ''; // URLs relatives — fonctionne en local ET en production
+
+const CASH_TYPES = ['checking', 'card', 'deposit'];
+const INVEST_TYPES = ['savings', 'lifeinsurance', 'market', 'pea', 'per', 'article83',
+  'capitalisation', 'ldds', 'cel', 'pel', 'crowdlending', 'livret', 'rsp', 'fonds',
+  'madelin', 'perp', 'pee'];
+
+const CAT_COLORS = {
+  'Alimentation & Restaurants': { bg: '#fff3e0', color: '#e65100' },
+  'Transport': { bg: '#e8f5e9', color: '#2e7d32' },
+  'Logement': { bg: '#e3f2fd', color: '#1565c0' },
+  'Loisirs': { bg: '#f3e5f5', color: '#6a1b9a' },
+  'Santé': { bg: '#fce4ec', color: '#ad1457' },
+  'Shopping': { bg: '#fff8e1', color: '#f57f17' },
+  'Banque': { bg: '#e8eaf6', color: '#283593' },
+  'Revenus': { bg: '#e8f5e9', color: '#1b5e20' },
+  'Épargne': { bg: '#f3e5f5', color: '#4a148c' },
+  'Assurance': { bg: '#e0f2f1', color: '#004d40' },
+  'Téléphonie & Internet': { bg: '#e1f5fe', color: '#01579b' },
+  'Autres': { bg: '#f5f5f5', color: '#555' },
+};
+
+function getCatStyle(cat) {
+  if (!cat) return CAT_COLORS['Autres'];
+  for (const key of Object.keys(CAT_COLORS)) {
+    if (cat.toLowerCase().includes(key.toLowerCase().split(' ')[0].toLowerCase())) return CAT_COLORS[key];
+  }
+  return CAT_COLORS['Autres'];
+}
+
+function fmt(v, currency = 'EUR') {
+  if (v === null || v === undefined) return '—';
+  const val = typeof v === 'object' ? (v.value || v.balance || 0) : v;
+  return Number(val).toLocaleString('fr-FR', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getBalance(account) {
+  if (account.balance !== undefined && account.balance !== null) {
+    if (typeof account.balance === 'object') {
+      return Object.values(account.balance)[0] || 0;
+    }
+    return Number(account.balance);
+  }
+  return 0;
+}
+
+function getCurrency(account) {
+  if (account.currency) {
+    if (typeof account.currency === 'object') return account.currency.id || 'EUR';
+    return account.currency;
+  }
+  return 'EUR';
+}
+
+function getTypeBadge(type) {
+  if (!type) return `<span class="account-type-badge type-other">compte</span>`;
+  const labels = {
+    checking: 'Courant', card: 'Carte', deposit: 'Dépôt',
+    savings: 'Épargne', lifeinsurance: 'Assurance-vie',
+    market: 'Bourse', pea: 'PEA', per: 'PER',
+    ldds: 'LDDS', pel: 'PEL', cel: 'CEL', livret: 'Livret',
+  };
+  const classes = {
+    checking: 'type-checking', card: 'type-checking', deposit: 'type-checking',
+    savings: 'type-savings', lifeinsurance: 'type-savings',
+    market: 'type-market', pea: 'type-market', per: 'type-market',
+  };
+  const label = labels[type] || type;
+  const cls = classes[type] || 'type-other';
+  return `<span class="account-type-badge ${cls}">${label}</span>`;
+}
+
+function showToast(msg, emoji = '✓') {
+  const el = document.getElementById('toast');
+  el.innerHTML = `<span>${emoji}</span> ${msg}`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+let deleteTarget = null;
+function confirmDelete(accountId, accountName) {
+  deleteTarget = accountId;
+  document.getElementById('dialog-text').textContent = `Voulez-vous supprimer "${accountName}" ? Cette action désactivera le compte.`;
+  document.getElementById('confirm-delete-btn').onclick = () => deleteAccount(accountId);
+  document.getElementById('overlay').classList.add('show');
+}
+function closeDialog() {
+  document.getElementById('overlay').classList.remove('show');
+  deleteTarget = null;
+}
+
+async function deleteAccount(accountId) {
+  closeDialog();
+  try {
+    const r = await fetch(`${PROXY}/api/accounts/${accountId}`, { method: 'DELETE' });
+    if (r.ok) {
+      showToast('Compte supprimé', '🗑');
+      loadData();
+    } else {
+      showToast('Erreur lors de la suppression', '⚠');
+    }
+  } catch {
+    showToast('Erreur réseau', '⚠');
+  }
+}
+
+async function addBank() {
+  try {
+    const r = await fetch(`${PROXY}/api/add-connection`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    const { webviewUrl } = await r.json();
+    const popup = window.open(webviewUrl, '_blank', 'width=480,height=700');
+    if (!popup) {
+      showToast('Autorisez les popups pour ce site', '⚠');
+      return;
+    }
+    const timer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(timer);
+        showToast('Banque connectée ! Synchronisation en cours...', '🏦');
+        pollForAccounts();
+      }
+    }, 800);
+  } catch {
+    showToast('Impossible d\'ouvrir la webview', '⚠');
+  }
+}
+
+async function pollForAccounts(attempt = 0) {
+  const MAX = 8;
+  if (attempt === 0) {
+    document.getElementById('banks-list').innerHTML =
+      '<div class="loading-state"><span class="spinner"></span> Synchronisation de votre banque en cours...</div>';
+  }
+  const r = await fetch(`${PROXY}/api/accounts`, { redirect: 'manual' }).catch(() => null);
+  if (!r || r.type === 'opaqueredirect') { window.location.href = '/login'; return; }
+  if (r.ok) {
+    const data = await r.json();
+    if ((data.accounts || []).length > 0 || attempt >= MAX) { loadData(); return; }
+  }
+  if (attempt < MAX) setTimeout(() => pollForAccounts(attempt + 1), 3000);
+  else loadData();
+}
+
+// ── Render accounts grouped by connection/bank ──────────────────────────────
+
+function renderAccounts(accounts) {
+  const el = document.getElementById('banks-list');
+
+  if (!accounts || accounts.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🏦</div>
+        <div class="empty-title">Aucun compte connecté</div>
+        <div class="empty-sub">Ajoutez une banque pour commencer</div>
+      </div>`;
+    return;
+  }
+
+  // Totals
+  let totalAll = 0, totalInvested = 0, totalCash = 0;
+  accounts.forEach(a => {
+    const bal = getBalance(a);
+    totalAll += bal;
+    const type = (a.type || '').toLowerCase();
+    if (CASH_TYPES.includes(type)) totalCash += bal;
+    else if (INVEST_TYPES.includes(type)) totalInvested += bal;
+  });
+
+  document.getElementById('kpi-total').textContent = fmt(totalAll);
+  document.getElementById('kpi-total-sub').textContent = `${accounts.length} compte(s)`;
+  document.getElementById('kpi-invested').textContent = fmt(totalInvested);
+  document.getElementById('kpi-cash').textContent = fmt(totalCash);
+
+  // Group by id_connection
+  const groups = {};
+  accounts.forEach(a => {
+    const key = a.id_connection || 'unknown';
+    if (!groups[key]) groups[key] = { accounts: [], connector: a.connector || null };
+    groups[key].accounts.push(a);
+  });
+
+  el.innerHTML = Object.entries(groups).map(([connId, group]) => {
+    const conn = group.connector;
+    const bankName = conn?.name || `Banque #${connId}`;
+    const connectorId = conn?.id;
+
+    const logoHtml = connectorId
+      ? `<img class="bank-logo" src="https://powens-platform-content.s3.eu-west-3.amazonaws.com/banks-icons/${connectorId}.png"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+          alt="${bankName}" />
+         <div class="bank-logo-fallback" style="display:none;">${bankName.slice(0,2).toUpperCase()}</div>`
+      : `<div class="bank-logo-fallback">${bankName.slice(0,2).toUpperCase()}</div>`;
+
+    const accountsHtml = group.accounts.map(a => {
+      const bal = getBalance(a);
+      const cur = getCurrency(a);
+      const balClass = bal >= 0 ? 'positive' : 'negative';
+      return `
+        <div class="account-row">
+          <div class="account-left">
+            ${getTypeBadge(a.type)}
+            <div>
+              <div class="account-name">${a.name || 'Compte'}</div>
+              ${a.iban ? `<div class="account-iban">${a.iban.slice(0,4)} •••• ${a.iban.slice(-4)}</div>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="account-balance ${balClass}">${fmt(bal, cur)}</div>
+            <button class="btn btn-danger btn-sm btn-icon" onclick="confirmDelete(${a.id}, '${(a.name||'ce compte').replace(/'/g, "\\'")}')" title="Supprimer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="bank-group">
+        <div class="bank-header">
+          ${logoHtml}
+          <div>
+            <div class="bank-name">${bankName}</div>
+            <div class="bank-accounts-count">${group.accounts.length} compte(s)</div>
+          </div>
+        </div>
+        ${accountsHtml}
+      </div>`;
+  }).join('');
+}
+
+// ── Render transactions ──────────────────────────────────────────────────────
+
+function renderTransactions(transactions) {
+  const el = document.getElementById('tx-card');
+  document.getElementById('tx-count').textContent = `${transactions.length} dernières opérations`;
+
+  if (!transactions || transactions.length === 0) {
+    el.innerHTML = `<div class="loading-state" style="color:var(--subtle);">Aucune transaction trouvée</div>`;
+    return;
+  }
+
+  const header = `
+    <div class="tx-row header">
+      <div>Date</div>
+      <div>Libellé</div>
+      <div>Catégorie</div>
+      <div style="text-align:right;">Montant</div>
+    </div>`;
+
+  const rows = transactions.map(t => {
+    const val = t.value || 0;
+    const amtClass = val >= 0 ? 'pos' : 'neg';
+    const amtStr = (val >= 0 ? '+' : '') + fmt(val, t.original_currency || 'EUR');
+    const cat = t.category || t.wording_simple || null;
+    const catStyle = getCatStyle(cat);
+    const catHtml = cat
+      ? `<span class="tx-cat-tag" style="background:${catStyle.bg};color:${catStyle.color};">${cat}</span>`
+      : `<span class="tx-cat-tag" style="background:#f5f5f5;color:#999;">—</span>`;
+    const label = t.simplified_wording || t.wording || 'Transaction';
+    const date = t.date ? t.date.slice(0, 10) : '';
+
+    return `
+      <div class="tx-row">
+        <div class="tx-date">${date}</div>
+        <div class="tx-label" title="${label}">${label}</div>
+        <div class="tx-cat">${catHtml}</div>
+        <div class="tx-amount ${amtClass}">${amtStr}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = header + rows;
+}
+
+// ── Load data ────────────────────────────────────────────────────────────────
+
+async function loadData() {
+  try {
+    const [aRes, tRes] = await Promise.all([
+      fetch(`${PROXY}/api/accounts`, { redirect: 'manual' }),
+      fetch(`${PROXY}/api/transactions?limit=30`, { redirect: 'manual' })
+    ]);
+
+    if (aRes.type === 'opaqueredirect' || aRes.status === 0) {
+      window.location.href = '/login';
+      return;
+    }
+
+    const aData = aRes.ok ? await aRes.json() : { accounts: [] };
+    const tData = tRes.ok ? await tRes.json() : { transactions: [] };
+
+    renderAccounts(aData.accounts || []);
+    renderTransactions(tData.transactions || []);
+  } catch (e) {
+    document.getElementById('banks-list').innerHTML = `
+      <div class="loading-state" style="color:#c0392b;">
+        Erreur de chargement. <button onclick="loadData()" class="btn btn-sm" style="margin-left:8px;">Réessayer</button>
+      </div>`;
+  }
+}
+
+// ── Auto-detect connection callback ─────────────────────────────────────────
+window.addEventListener('message', e => {
+  if (e.data?.type === 'POWENS_CONNECTED') {
+    showToast('Banque connectée ! Synchronisation...', '🏦');
+    // polling is handled by the popup-close timer in addBank()
+  }
+});
+
+const params = new URLSearchParams(location.search);
+if (params.get('connected') === 'true') {
+  showToast('Banque connectée avec succès !', '✅');
+  history.replaceState({}, '', '/');
+}
+
+loadData();
+</script>
+</body>
+</html>

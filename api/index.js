@@ -110,7 +110,10 @@ async function getWebviewUrl(session) {
   });
   if (codeRes.status >= 400) throw new Error(`Erreur code: ${JSON.stringify(codeRes.body)}`);
 
-  const webviewUrl = `https://webview.powens.com/connect?domain=${DOMAIN}&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${codeRes.body.code}`;
+  // Signe les credentials Powens dans le paramètre state — Powens les renverra
+  // tels quels au callback, où on les lira pour set le cookie directement.
+  const state = signCookie(powens);
+  const webviewUrl = `https://webview.powens.com/connect?domain=${DOMAIN}&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${codeRes.body.code}&state=${encodeURIComponent(state)}`;
   return { webviewUrl, powens };
 }
 
@@ -225,22 +228,60 @@ module.exports = async (req, res) => {
   // ── Callback webview (pas d'auth requise) ────────────────────────────────
   if (pathname === "/api/callback") {
     if (query.get("error")) {
+      console.log("callback error:", query.get("error"));
       return sendHtml(res, `<html><body style="font-family:sans-serif;padding:2rem">
         <h2>❌ Erreur: ${query.get("error")}</h2>
         <script>window.opener?.postMessage({type:'POWENS_ERROR'},'*');setTimeout(()=>window.close(),2000)</script>
       </body></html>`);
     }
-    return sendHtml(res, `<html><body style="font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7f7f5;margin:0">
-      <div style="text-align:center;padding:2rem;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:340px">
-        <div style="font-size:3rem;margin-bottom:1rem">✅</div>
-        <h2 style="font-size:18px;margin:0 0 8px">Banque connectée !</h2>
-        <p style="color:#666;font-size:14px;margin:0">Retournez sur votre dashboard.<br>Cette fenêtre se ferme automatiquement.</p>
-      </div>
-      <script>
-        window.opener?.postMessage({type:'POWENS_CONNECTED'},'*');
-        setTimeout(()=>{ window.close(); window.location.href='/?connected=true'; }, 2000);
-      </script>
-    </body></html>`);
+
+    // Stratégie principale : décoder les credentials Powens depuis le paramètre
+    // state (signé par getWebviewUrl). Le Set-Cookie dans la réponse callback
+    // est TOUJOURS stocké par le navigateur (SameSite ne bloque que l'envoi).
+    const rawState = query.get("state");
+    console.log("callback state présent:", !!rawState);
+    const extraHeaders = {};
+
+    if (rawState) {
+      const powens = verifyCookie(rawState);
+      console.log("callback state décodé:", powens ? `userId=${powens.id}` : "INVALIDE");
+      if (powens?.id && powens?.token) {
+        // Récupérer la session login depuis le cookie si dispo (SameSite=Lax)
+        const existingSession = getSession(req);
+        const newSession = { loggedIn: existingSession?.loggedIn ?? true, powens };
+        extraHeaders["Set-Cookie"] = makeSessionCookie(newSession);
+        console.log("callback: cookie session set avec powens userId", powens.id);
+      }
+    } else {
+      // Fallback : state absent → tenter de lire le cookie existant
+      const existingSession = getSession(req);
+      console.log("callback sans state, session existante:", existingSession ? `loggedIn=${existingSession.loggedIn}, hasPowens=${!!existingSession.powens}` : "null");
+    }
+
+    return sendHtml(res, `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7f7f5;margin:0">
+  <div style="text-align:center;padding:2rem;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:340px">
+    <div style="font-size:3rem;margin-bottom:1rem">✅</div>
+    <h2 style="font-size:18px;margin:0 0 8px">Banque connectée !</h2>
+    <p style="color:#666;font-size:14px;margin:0">Retournez sur votre dashboard.<br>Cette fenêtre se ferme automatiquement.</p>
+  </div>
+  <script>
+    window.opener?.postMessage({type:'POWENS_CONNECTED'},'*');
+    setTimeout(()=>window.close(), 1500);
+  </script>
+</body></html>`, extraHeaders);
+  }
+
+  // ── Debug session (temporaire) ────────────────────────────────────────────
+  if (pathname === "/api/debug" && req.method === "GET") {
+    const s = getSession(req);
+    return sendJson(res, 200, {
+      hasCookie: !!getCookieValue(req, "pc_auth"),
+      loggedIn: s?.loggedIn ?? false,
+      hasPowens: !!(s?.powens),
+      powensUserId: s?.powens?.id ?? null,
+    });
   }
 
   // ── Vérification auth ─────────────────────────────────────────────────────
@@ -259,15 +300,15 @@ module.exports = async (req, res) => {
     return;
   }
 
-  // ── GET /api/webview-start — ouvre la webview et set le cookie via redirect ──
-  // (approche redirect plutôt que fetch pour garantir que le cookie est sauvegardé)
+  // ── GET /api/webview-start — redirige vers la webview Powens ─────────────
+  // Le cookie sera set dans /api/callback via le paramètre state signé.
   if (pathname === "/api/webview-start" && req.method === "GET") {
     try {
-      const { webviewUrl, powens } = await getWebviewUrl(session);
-      const newSession = { ...session, powens };
-      const cookie = makeSessionCookie(newSession);
-      return redirect(res, webviewUrl, { "Set-Cookie": cookie });
+      const { webviewUrl } = await getWebviewUrl(session);
+      console.log("webview-start: redirect vers Powens");
+      return redirect(res, webviewUrl);
     } catch (e) {
+      console.log("webview-start erreur:", e.message);
       return sendHtml(res, `<html><body style="font-family:sans-serif;padding:2rem;background:#f7f7f5;">
         <h2 style="color:#c0392b;">❌ Erreur de connexion</h2>
         <p>${e.message}</p>
